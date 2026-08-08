@@ -12,6 +12,10 @@ function generateBuilderTitle() {
   return `${randomItem(TITLE_PREFIXES)} ${randomItem(TITLE_SUFFIXES)}`;
 }
 
+function assetPath(fileName) {
+  return `${import.meta.env.BASE_URL}assets/${fileName}`;
+}
+
 export default function HHGoaCardGenerator() {
   const [hasStarted, setHasStarted] = useState(false);
   const [isGenerated, setIsGenerated] = useState(false);
@@ -31,7 +35,7 @@ export default function HHGoaCardGenerator() {
   useEffect(() => {
     const img = new Image();
     img.onload = () => setHeaderImg(img);
-    img.src = '/assets/hacker-house.png';
+    img.src = assetPath('hacker-house.png');
   }, []);
 
   const isFormValid = name.trim() && handle.trim() && role.trim() && builderId.trim() && imageSrc;
@@ -258,7 +262,7 @@ export default function HHGoaCardGenerator() {
       className="min-h-screen"
       style={{
         backgroundColor: '#0B6839',
-        backgroundImage: 'url(/assets/sunrise.png)',
+        backgroundImage: `url(${assetPath('sunrise.png')})`,
         backgroundRepeat: 'no-repeat',
         backgroundPosition: 'bottom center',
         backgroundSize: '100% auto',
@@ -268,13 +272,13 @@ export default function HHGoaCardGenerator() {
       <header className="w-full px-6 pt-10 pb-6">
         <div className="relative w-full max-w-5xl mx-auto">
           <img
-            src="/assets/hacker-house.png"
+            src={assetPath('hacker-house.png')}
             alt="HACKER HOUSE GOA"
             className="w-full block"
             style={{ objectFit: 'contain' }}
           />
           <img
-            src="/assets/goa-hindi.svg"
+            src={assetPath('goa-hindi.svg')}
             alt="गोवा"
             className="absolute"
             style={{
