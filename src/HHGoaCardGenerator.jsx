@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import heic2any from 'heic2any';
 
 const TITLE_PREFIXES = ['Chain', 'AI', 'Protocol', 'Design', 'Data', 'Infra', 'Growth'];
 const TITLE_SUFFIXES = ['Alchemist', 'Wizard', 'Ranger', 'Architect', 'Pilot', 'Ninja', 'Captain'];
+
+const FORMAT_PFP = 'pfp';
+const FORMAT_ID = 'id';
 
 function randomItem(items) {
   return items[Math.floor(Math.random() * items.length)];
@@ -16,20 +18,52 @@ function assetPath(fileName) {
   return `${import.meta.env.BASE_URL}assets/${fileName}`;
 }
 
+function drawCircularPhoto(ctx, img, centerX, centerY, diameter, zoom, offsetX, offsetY) {
+  const baseScale = Math.max(diameter / img.width, diameter / img.height);
+  const drawWidth = img.width * baseScale * zoom;
+  const drawHeight = img.height * baseScale * zoom;
+  const drawX = centerX - drawWidth / 2 + offsetX;
+  const drawY = centerY - drawHeight / 2 + offsetY;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, diameter / 2, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+  ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+  ctx.restore();
+}
+
 export default function HHGoaCardGenerator() {
   const [hasStarted, setHasStarted] = useState(false);
+  const [format, setFormat] = useState(FORMAT_ID);
   const [isGenerated, setIsGenerated] = useState(false);
+
   const [name, setName] = useState('');
-  const [handle, setHandle] = useState('');
+  const [twitterUrl, setTwitterUrl] = useState('');
   const [role, setRole] = useState('');
   const [builderTitle, setBuilderTitle] = useState(generateBuilderTitle);
   const [builderId, setBuilderId] = useState(
     '#HH-GOA-' + Math.floor(1000 + Math.random() * 9000)
   );
+  const [githubUrl, setGithubUrl] = useState('');
+  const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [instagramUrl, setInstagramUrl] = useState('');
+  const [email, setEmail] = useState('');
+  const [contact, setContact] = useState('');
+  const [location, setLocation] = useState('');
+  const [skills, setSkills] = useState('');
+
   const [imageSrc, setImageSrc] = useState(null);
   const [headerImg, setHeaderImg] = useState(null);
-  const [formError, setFormError] = useState('');
+  const [qrCodeSrc, setQrCodeSrc] = useState('');
   const [cardDataUrl, setCardDataUrl] = useState('');
+  const [formError, setFormError] = useState('');
+
+  const [photoZoom, setPhotoZoom] = useState(1);
+  const [photoOffsetX, setPhotoOffsetX] = useState(0);
+  const [photoOffsetY, setPhotoOffsetY] = useState(0);
+
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -38,7 +72,94 @@ export default function HHGoaCardGenerator() {
     img.src = assetPath('hacker-house.png');
   }, []);
 
-  const isFormValid = name.trim() && handle.trim() && role.trim() && builderId.trim() && imageSrc;
+  const isIdFormValid =
+    name.trim() &&
+    twitterUrl.trim() &&
+    role.trim() &&
+    builderTitle.trim() &&
+    builderId.trim() &&
+    githubUrl.trim() &&
+    linkedinUrl.trim() &&
+    instagramUrl.trim() &&
+    email.trim() &&
+    contact.trim() &&
+    location.trim() &&
+    skills.trim() &&
+    imageSrc;
+
+  const isFormValid = format === FORMAT_PFP ? !!imageSrc : !!isIdFormValid;
+
+  useEffect(() => {
+    if (format !== FORMAT_ID || !isGenerated || !isIdFormValid) {
+      setQrCodeSrc('');
+      return;
+    }
+
+    let cancelled = false;
+
+    const payload = JSON.stringify(
+      {
+        name: name.trim(),
+        twitterUrl: twitterUrl.trim(),
+        role: role.trim(),
+        builderTitle: builderTitle.trim(),
+        builderId: builderId.trim(),
+        githubUrl: githubUrl.trim(),
+        linkedinUrl: linkedinUrl.trim(),
+        instagramUrl: instagramUrl.trim(),
+        email: email.trim(),
+        contact: contact.trim(),
+        location: location.trim(),
+        skills: skills.trim(),
+      },
+      null,
+      0
+    );
+
+    async function buildQr() {
+      try {
+        const { default: QRCode } = await import('qrcode');
+        const dataUrl = await QRCode.toDataURL(payload, {
+          width: 140,
+          margin: 1,
+          errorCorrectionLevel: 'M',
+          color: {
+            dark: '#0A3A24',
+            light: '#ffffff',
+          },
+        });
+        if (!cancelled) {
+          setQrCodeSrc(dataUrl);
+        }
+      } catch {
+        if (!cancelled) {
+          setQrCodeSrc('');
+        }
+      }
+    }
+
+    buildQr();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    format,
+    isGenerated,
+    isIdFormValid,
+    name,
+    twitterUrl,
+    role,
+    builderTitle,
+    builderId,
+    githubUrl,
+    linkedinUrl,
+    instagramUrl,
+    email,
+    contact,
+    location,
+    skills,
+  ]);
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
@@ -57,6 +178,7 @@ export default function HHGoaCardGenerator() {
         nameLower.endsWith('.heif');
 
       if (isHeic) {
+        const { default: heic2any } = await import('heic2any');
         const converted = await heic2any({
           blob: file,
           toType: 'image/jpeg',
@@ -68,6 +190,9 @@ export default function HHGoaCardGenerator() {
       const reader = new FileReader();
       reader.onload = (uploadEvent) => {
         setImageSrc(uploadEvent.target.result);
+        setPhotoZoom(1);
+        setPhotoOffsetX(0);
+        setPhotoOffsetY(0);
         setFormError('');
       };
       reader.readAsDataURL(sourceBlob);
@@ -81,7 +206,11 @@ export default function HHGoaCardGenerator() {
     e.preventDefault();
     if (!isFormValid) {
       setIsGenerated(false);
-      setFormError('All fields are mandatory, including photo upload.');
+      setFormError(
+        format === FORMAT_PFP
+          ? 'Photo upload is mandatory.'
+          : 'Please fill all fields and upload a photo.'
+      );
       return;
     }
     setFormError('');
@@ -89,15 +218,79 @@ export default function HHGoaCardGenerator() {
   };
 
   useEffect(() => {
-    if (!isGenerated) return;
+    if (!isGenerated || !imageSrc) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    canvas.width = 600;
-    canvas.height = 900;
 
-    const drawCard = (profileImg) => {
+    if (format === FORMAT_PFP) {
+      canvas.width = 1080;
+      canvas.height = 1080;
+    } else {
+      canvas.width = 600;
+      canvas.height = 900;
+    }
+
+    const profileImg = new Image();
+    profileImg.onload = () => {
+      if (format === FORMAT_PFP) {
+        const grad = ctx.createLinearGradient(0, 0, 1080, 1080);
+        grad.addColorStop(0, '#0B6839');
+        grad.addColorStop(0.6, '#0A5E34');
+        grad.addColorStop(1, '#08311E');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 1080, 1080);
+
+        const centerX = 540;
+        const centerY = 510;
+        const diameter = 860;
+        drawCircularPhoto(
+          ctx,
+          profileImg,
+          centerX,
+          centerY,
+          diameter,
+          photoZoom,
+          photoOffsetX * 2.2,
+          photoOffsetY * 2.2
+        );
+
+        const ring = ctx.createLinearGradient(120, 120, 960, 960);
+        ring.addColorStop(0, '#FEE101');
+        ring.addColorStop(0.5, '#FFF3A1');
+        ring.addColorStop(1, '#F9DC01');
+        ctx.strokeStyle = ring;
+        ctx.lineWidth = 28;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, diameter / 2 + 12, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(254,225,1,0.6)';
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, diameter / 2 + 38, 0, Math.PI * 2);
+        ctx.stroke();
+
+        if (headerImg) {
+          const width = 780;
+          const height = width * (headerImg.height / headerImg.width);
+          ctx.drawImage(headerImg, (1080 - width) / 2, 75, width, height);
+        } else {
+          ctx.fillStyle = '#FEE101';
+          ctx.font = 'bold 92px serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('HACKER HOUSE', 540, 170);
+        }
+
+        ctx.fillStyle = '#FEE101';
+        ctx.textAlign = 'center';
+        ctx.font = 'bold 46px sans-serif';
+        ctx.fillText('#FrameInGoa', 540, 990);
+        setCardDataUrl(canvas.toDataURL('image/png'));
+        return;
+      }
+
       const bgGradient = ctx.createLinearGradient(0, 0, 600, 900);
       bgGradient.addColorStop(0, '#0B6839');
       bgGradient.addColorStop(0.55, '#0A5E34');
@@ -117,7 +310,6 @@ export default function HHGoaCardGenerator() {
       ctx.strokeStyle = '#FEE101';
       ctx.lineWidth = 5;
       ctx.strokeRect(20, 20, 560, 860);
-
       ctx.strokeStyle = '#F9DC01';
       ctx.lineWidth = 1.5;
       ctx.strokeRect(30, 30, 540, 840);
@@ -140,29 +332,7 @@ export default function HHGoaCardGenerator() {
       ctx.textAlign = 'right';
       ctx.fillText('2:47 PM STUDIO', 560, 172);
 
-      const scale = Math.max(216 / profileImg.width, 216 / profileImg.height);
-      const sourceWidth = 216 / scale;
-      const sourceHeight = 216 / scale;
-      const sourceX = (profileImg.width - sourceWidth) / 2;
-      const sourceY = (profileImg.height - sourceHeight) / 2;
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(300, 320, 108, 0, Math.PI * 2);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(
-        profileImg,
-        sourceX,
-        sourceY,
-        sourceWidth,
-        sourceHeight,
-        192,
-        212,
-        216,
-        216
-      );
-      ctx.restore();
+      drawCircularPhoto(ctx, profileImg, 300, 320, 216, photoZoom, photoOffsetX, photoOffsetY);
 
       ctx.beginPath();
       ctx.arc(300, 320, 111, 0, Math.PI * 2);
@@ -177,52 +347,66 @@ export default function HHGoaCardGenerator() {
 
       ctx.fillStyle = '#FEE101';
       ctx.font = 'bold 22px sans-serif';
-      ctx.fillText(handle.trim(), 300, 538);
-
-      ctx.fillStyle = '#0A3F27';
-      ctx.fillRect(95, 565, 410, 52);
-      ctx.strokeStyle = '#FEE101';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(95, 565, 410, 52);
-      ctx.fillStyle = '#FEE101';
-      ctx.font = 'bold 19px sans-serif';
-      ctx.fillText(role.trim().toUpperCase(), 300, 598);
+      ctx.fillText(role.trim().toUpperCase(), 300, 540);
 
       ctx.fillStyle = '#D1FAE5';
-      ctx.font = 'bold 18px sans-serif';
-      ctx.fillText(builderTitle.trim().toUpperCase(), 300, 632);
+      ctx.font = 'bold 20px sans-serif';
+      ctx.fillText(builderTitle.trim().toUpperCase(), 300, 578);
 
       ctx.fillStyle = '#0A3A24';
-      ctx.fillRect(80, 662, 440, 122);
+      ctx.fillRect(80, 620, 440, 130);
       ctx.strokeStyle = '#FEE101';
-      ctx.strokeRect(80, 662, 440, 122);
+      ctx.strokeRect(80, 620, 440, 130);
       ctx.fillStyle = '#FFFFFF';
       ctx.font = '14px monospace';
-      ctx.fillText('OFFICIAL ID NUMBER', 300, 694);
+      ctx.fillText('BUILDER ID', 300, 655);
       ctx.fillStyle = '#F9DC01';
       ctx.font = 'bold 30px monospace';
-      ctx.fillText(builderId.trim(), 300, 738);
+      ctx.fillText(builderId.trim(), 300, 702);
       ctx.fillStyle = '#D1FAE5';
       ctx.font = '12px sans-serif';
-      ctx.fillText('GOA, INDIA • AUG 2026', 300, 766);
+      ctx.fillText(location.trim().toUpperCase(), 300, 730);
 
-      ctx.fillStyle = '#FEE101';
-      ctx.font = 'bold 14px sans-serif';
-      ctx.fillText('#FrameInGoa   #HHGoa2026   @247pmstudio', 300, 828);
-
-      setCardDataUrl(canvas.toDataURL('image/png'));
+      if (qrCodeSrc) {
+        const qrImg = new Image();
+        qrImg.onload = () => {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(430, 760, 136, 136);
+          ctx.drawImage(qrImg, 438, 768, 120, 120);
+          ctx.fillStyle = '#FEE101';
+          ctx.font = 'bold 11px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('SCAN FOR DETAILS', 498, 900 - 42);
+          setCardDataUrl(canvas.toDataURL('image/png'));
+        };
+        qrImg.src = qrCodeSrc;
+      } else {
+        setCardDataUrl(canvas.toDataURL('image/png'));
+      }
     };
-
-    const img = new Image();
-    img.onload = () => drawCard(img);
-    img.src = imageSrc;
-  }, [isGenerated, imageSrc, name, handle, role, builderTitle, builderId, headerImg]);
+    profileImg.src = imageSrc;
+  }, [
+    isGenerated,
+    format,
+    imageSrc,
+    headerImg,
+    qrCodeSrc,
+    name,
+    role,
+    builderTitle,
+    builderId,
+    location,
+    photoZoom,
+    photoOffsetX,
+    photoOffsetY,
+  ]);
 
   const handleDownload = () => {
     if (!cardDataUrl || !isGenerated) return;
     const link = document.createElement('a');
-    const safeName = name.trim().replace(/\s+/g, '_');
-    link.download = `${safeName}_HHGoa_Pass.png`;
+    const safeName = (name.trim() || 'builder').replace(/\s+/g, '_');
+    link.download =
+      format === FORMAT_PFP ? `${safeName}_HHGoa_PFP_Frame.png` : `${safeName}_HHGoa_Pass.png`;
     link.href = cardDataUrl;
     link.click();
   };
@@ -231,18 +415,19 @@ export default function HHGoaCardGenerator() {
     if (!cardDataUrl) return;
 
     const shareText =
-      `Got my HH Goa 2026 Builder ID ⚡ #FrameInGoa\n` +
-      `Build yours: ${window.location.href}`;
+      format === FORMAT_PFP
+        ? `Got my HH Goa 2026 PFP frame 🌴 #FrameInGoa\nBuild yours: ${window.location.href}`
+        : `Got my HH Goa 2026 Builder ID ⚡ #FrameInGoa\nBuild yours: ${window.location.href}`;
 
     try {
       if (navigator.share && navigator.canShare) {
         const response = await fetch(cardDataUrl);
         const blob = await response.blob();
-        const file = new File([blob], 'hhgoa-id.png', { type: 'image/png' });
+        const file = new File([blob], 'hhgoa-card.png', { type: 'image/png' });
 
         if (navigator.canShare({ files: [file] })) {
           await navigator.share({
-            title: 'HHGoa 2026 Builder ID',
+            title: 'HHGoa 2026',
             text: shareText,
             files: [file],
           });
@@ -250,7 +435,7 @@ export default function HHGoaCardGenerator() {
         }
       }
     } catch {
-      // Fallback to X intent below.
+      // Fallback to intent URL below.
     }
 
     const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
@@ -326,87 +511,236 @@ export default function HHGoaCardGenerator() {
             }}
           >
             <h2 className="text-2xl font-bold" style={{ color: '#FEE101' }}>
-              HHGoa ID Generator
+              HHGoa Generator
             </h2>
 
             <div>
-              <label className="block text-sm mb-1" style={{ color: '#FEE101' }}>
-                Name *
+              <label className="block text-sm mb-2" style={{ color: '#FEE101' }}>
+                Format *
               </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                className="w-full rounded-lg px-3 py-2 border"
-                style={{ background: '#063520', borderColor: '#FEE101', color: '#FFFFFF' }}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm mb-1" style={{ color: '#FEE101' }}>
-                X *
-              </label>
-              <input
-                type="text"
-                value={handle}
-                onChange={(e) => setHandle(e.target.value)}
-                required
-                className="w-full rounded-lg px-3 py-2 border"
-                style={{ background: '#063520', borderColor: '#FEE101', color: '#FFFFFF' }}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm mb-1" style={{ color: '#FEE101' }}>
-                Role *
-              </label>
-              <input
-                type="text"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                required
-                className="w-full rounded-lg px-3 py-2 border"
-                style={{ background: '#063520', borderColor: '#FEE101', color: '#FFFFFF' }}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm mb-1" style={{ color: '#FEE101' }}>
-                Builder Title (Auto) *
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={builderTitle}
-                  readOnly
-                  className="w-full rounded-lg px-3 py-2 border"
-                  style={{ background: '#063520', borderColor: '#FEE101', color: '#FFFFFF' }}
-                />
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => setBuilderTitle(generateBuilderTitle())}
-                  className="px-3 rounded-lg font-semibold"
-                  style={{ background: '#FEE101', color: '#0B6839' }}
+                  onClick={() => {
+                    setFormat(FORMAT_PFP);
+                    setIsGenerated(false);
+                    setFormError('');
+                  }}
+                  className="rounded-lg py-2 font-semibold border"
+                  style={{
+                    background: format === FORMAT_PFP ? '#FEE101' : '#063520',
+                    color: format === FORMAT_PFP ? '#0B6839' : '#FEE101',
+                    borderColor: '#FEE101',
+                  }}
                 >
-                  New
+                  Format A: PFP
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormat(FORMAT_ID);
+                    setIsGenerated(false);
+                    setFormError('');
+                  }}
+                  className="rounded-lg py-2 font-semibold border"
+                  style={{
+                    background: format === FORMAT_ID ? '#FEE101' : '#063520',
+                    color: format === FORMAT_ID ? '#0B6839' : '#FEE101',
+                    borderColor: '#FEE101',
+                  }}
+                >
+                  Format B: ID Card
                 </button>
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm mb-1" style={{ color: '#FEE101' }}>
-                Builder ID *
-              </label>
-              <input
-                type="text"
-                value={builderId}
-                onChange={(e) => setBuilderId(e.target.value)}
-                required
-                className="w-full rounded-lg px-3 py-2 border"
-                style={{ background: '#063520', borderColor: '#FEE101', color: '#FFFFFF' }}
-              />
-            </div>
+            {format === FORMAT_ID ? (
+              <>
+                <div>
+                  <label className="block text-sm mb-1" style={{ color: '#FEE101' }}>
+                    Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    className="w-full rounded-lg px-3 py-2 border"
+                    style={{ background: '#063520', borderColor: '#FEE101', color: '#FFFFFF' }}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-1" style={{ color: '#FEE101' }}>
+                    Twitter URL *
+                  </label>
+                  <input
+                    type="url"
+                    value={twitterUrl}
+                    onChange={(e) => setTwitterUrl(e.target.value)}
+                    required
+                    className="w-full rounded-lg px-3 py-2 border"
+                    style={{ background: '#063520', borderColor: '#FEE101', color: '#FFFFFF' }}
+                    placeholder="https://twitter.com/username"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-1" style={{ color: '#FEE101' }}>
+                    Role *
+                  </label>
+                  <input
+                    type="text"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    required
+                    className="w-full rounded-lg px-3 py-2 border"
+                    style={{ background: '#063520', borderColor: '#FEE101', color: '#FFFFFF' }}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-1" style={{ color: '#FEE101' }}>
+                    Builder Title *
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={builderTitle}
+                      onChange={(e) => setBuilderTitle(e.target.value)}
+                      required
+                      className="w-full rounded-lg px-3 py-2 border"
+                      style={{ background: '#063520', borderColor: '#FEE101', color: '#FFFFFF' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setBuilderTitle(generateBuilderTitle())}
+                      className="px-3 rounded-lg font-semibold"
+                      style={{ background: '#FEE101', color: '#0B6839' }}
+                    >
+                      New
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-1" style={{ color: '#FEE101' }}>
+                    Builder ID *
+                  </label>
+                  <input
+                    type="text"
+                    value={builderId}
+                    onChange={(e) => setBuilderId(e.target.value)}
+                    required
+                    className="w-full rounded-lg px-3 py-2 border"
+                    style={{ background: '#063520', borderColor: '#FEE101', color: '#FFFFFF' }}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-1" style={{ color: '#FEE101' }}>
+                    GitHub URL *
+                  </label>
+                  <input
+                    type="url"
+                    value={githubUrl}
+                    onChange={(e) => setGithubUrl(e.target.value)}
+                    required
+                    className="w-full rounded-lg px-3 py-2 border"
+                    style={{ background: '#063520', borderColor: '#FEE101', color: '#FFFFFF' }}
+                    placeholder="https://github.com/username"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-1" style={{ color: '#FEE101' }}>
+                    LinkedIn URL *
+                  </label>
+                  <input
+                    type="url"
+                    value={linkedinUrl}
+                    onChange={(e) => setLinkedinUrl(e.target.value)}
+                    required
+                    className="w-full rounded-lg px-3 py-2 border"
+                    style={{ background: '#063520', borderColor: '#FEE101', color: '#FFFFFF' }}
+                    placeholder="https://linkedin.com/in/username"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-1" style={{ color: '#FEE101' }}>
+                    Instagram URL *
+                  </label>
+                  <input
+                    type="url"
+                    value={instagramUrl}
+                    onChange={(e) => setInstagramUrl(e.target.value)}
+                    required
+                    className="w-full rounded-lg px-3 py-2 border"
+                    style={{ background: '#063520', borderColor: '#FEE101', color: '#FFFFFF' }}
+                    placeholder="https://instagram.com/username"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-1" style={{ color: '#FEE101' }}>
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="w-full rounded-lg px-3 py-2 border"
+                    style={{ background: '#063520', borderColor: '#FEE101', color: '#FFFFFF' }}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-1" style={{ color: '#FEE101' }}>
+                    Contact *
+                  </label>
+                  <input
+                    type="text"
+                    value={contact}
+                    onChange={(e) => setContact(e.target.value)}
+                    required
+                    className="w-full rounded-lg px-3 py-2 border"
+                    style={{ background: '#063520', borderColor: '#FEE101', color: '#FFFFFF' }}
+                    placeholder="+91..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-1" style={{ color: '#FEE101' }}>
+                    Location *
+                  </label>
+                  <input
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    required
+                    className="w-full rounded-lg px-3 py-2 border"
+                    style={{ background: '#063520', borderColor: '#FEE101', color: '#FFFFFF' }}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-1" style={{ color: '#FEE101' }}>
+                    Skills *
+                  </label>
+                  <input
+                    type="text"
+                    value={skills}
+                    onChange={(e) => setSkills(e.target.value)}
+                    required
+                    className="w-full rounded-lg px-3 py-2 border"
+                    style={{ background: '#063520', borderColor: '#FEE101', color: '#FFFFFF' }}
+                    placeholder="AI, Web3, React..."
+                  />
+                </div>
+              </>
+            ) : null}
 
             <div>
               <label className="block text-sm mb-1" style={{ color: '#FEE101' }}>
@@ -422,6 +756,65 @@ export default function HHGoaCardGenerator() {
               />
             </div>
 
+            {imageSrc ? (
+              <div className="rounded-xl p-3 border" style={{ borderColor: '#FEE101' }}>
+                <p className="text-sm font-semibold mb-2" style={{ color: '#FEE101' }}>
+                  Photo Position & Resize
+                </p>
+                <label className="block text-xs mb-1" style={{ color: '#D1FAE5' }}>
+                  Zoom: {photoZoom.toFixed(2)}x
+                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="3"
+                  step="0.01"
+                  value={photoZoom}
+                  onChange={(e) => setPhotoZoom(Number(e.target.value))}
+                  className="w-full"
+                />
+
+                <label className="block text-xs mt-2 mb-1" style={{ color: '#D1FAE5' }}>
+                  Move Left / Right: {photoOffsetX}px
+                </label>
+                <input
+                  type="range"
+                  min="-160"
+                  max="160"
+                  step="1"
+                  value={photoOffsetX}
+                  onChange={(e) => setPhotoOffsetX(Number(e.target.value))}
+                  className="w-full"
+                />
+
+                <label className="block text-xs mt-2 mb-1" style={{ color: '#D1FAE5' }}>
+                  Move Up / Down: {photoOffsetY}px
+                </label>
+                <input
+                  type="range"
+                  min="-160"
+                  max="160"
+                  step="1"
+                  value={photoOffsetY}
+                  onChange={(e) => setPhotoOffsetY(Number(e.target.value))}
+                  className="w-full"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPhotoZoom(1);
+                    setPhotoOffsetX(0);
+                    setPhotoOffsetY(0);
+                  }}
+                  className="mt-3 px-3 py-2 rounded-lg text-sm font-semibold"
+                  style={{ background: '#FEE101', color: '#0B6839' }}
+                >
+                  Reset Photo Position
+                </button>
+              </div>
+            ) : null}
+
             {formError ? (
               <p className="text-sm font-semibold" style={{ color: '#FCA5A5' }}>
                 {formError}
@@ -433,7 +826,7 @@ export default function HHGoaCardGenerator() {
               className="w-full mt-2 font-semibold py-3 rounded-xl shadow-lg"
               style={{ background: '#FEE101', color: '#0B6839' }}
             >
-              Generate ID Card
+              {format === FORMAT_PFP ? 'Generate PFP Frame' : 'Generate ID Card'}
             </button>
           </form>
 
@@ -450,11 +843,15 @@ export default function HHGoaCardGenerator() {
                 className="text-sm font-semibold mb-3 uppercase tracking-wider"
                 style={{ color: '#FEE101' }}
               >
-                Your HHGoa ID Card
+                {format === FORMAT_PFP ? 'Your HHGoa PFP Frame' : 'Your HHGoa ID Card'}
               </h3>
               <canvas
                 ref={canvasRef}
-                className="w-[320px] h-[480px] sm:w-[400px] sm:h-[600px] rounded-2xl shadow-2xl border"
+                className={
+                  format === FORMAT_PFP
+                    ? 'w-[320px] h-[320px] sm:w-[460px] sm:h-[460px] rounded-2xl shadow-2xl border'
+                    : 'w-[320px] h-[480px] sm:w-[400px] sm:h-[600px] rounded-2xl shadow-2xl border'
+                }
                 style={{ borderColor: '#FEE101' }}
               />
               <button
@@ -482,7 +879,7 @@ export default function HHGoaCardGenerator() {
               }}
             >
               <p style={{ color: '#FEE101' }}>
-                Fill all mandatory fields to preview and download your ID card.
+                Fill all mandatory fields to preview and download your card.
               </p>
             </div>
           )}
