@@ -15,12 +15,12 @@ function assetPath(fileName) {
   return `${import.meta.env.BASE_URL}assets/${fileName}`;
 }
 
-function drawCircularPhoto(ctx, img, centerX, centerY, diameter, zoom, offsetX, offsetY) {
+function drawCircularPhoto(ctx, img, centerX, centerY, diameter) {
   const baseScale = Math.max(diameter / img.width, diameter / img.height);
-  const drawWidth = img.width * baseScale * zoom;
-  const drawHeight = img.height * baseScale * zoom;
-  const drawX = centerX - drawWidth / 2 + offsetX;
-  const drawY = centerY - drawHeight / 2 + offsetY;
+  const drawWidth = img.width * baseScale;
+  const drawHeight = img.height * baseScale;
+  const drawX = centerX - drawWidth / 2;
+  const drawY = centerY - drawHeight / 2;
 
   ctx.save();
   ctx.beginPath();
@@ -52,10 +52,6 @@ export default function HHGoaCardGenerator() {
   const [qrCodeSrc, setQrCodeSrc] = useState('');
   const [cardDataUrl, setCardDataUrl] = useState('');
   const [formError, setFormError] = useState('');
-
-  const [photoZoom, setPhotoZoom] = useState(1);
-  const [photoOffsetX, setPhotoOffsetX] = useState(0);
-  const [photoOffsetY, setPhotoOffsetY] = useState(0);
 
   const canvasRef = useRef(null);
 
@@ -170,9 +166,6 @@ export default function HHGoaCardGenerator() {
       const reader = new FileReader();
       reader.onload = (uploadEvent) => {
         setImageSrc(uploadEvent.target.result);
-        setPhotoZoom(1);
-        setPhotoOffsetX(0);
-        setPhotoOffsetY(0);
         setFormError('');
       };
       reader.readAsDataURL(sourceBlob);
@@ -231,7 +224,7 @@ export default function HHGoaCardGenerator() {
       ctx.fillText('2:47 PM STUDIO', 560, 172);
 
       if (profileImg) {
-        drawCircularPhoto(ctx, profileImg, 300, 320, 216, photoZoom, photoOffsetX, photoOffsetY);
+        drawCircularPhoto(ctx, profileImg, 300, 320, 216);
       } else {
         ctx.save();
         ctx.beginPath();
@@ -319,9 +312,6 @@ export default function HHGoaCardGenerator() {
     builderTitle,
     builderId,
     location,
-    photoZoom,
-    photoOffsetX,
-    photoOffsetY,
   ]);
 
   const handleDownload = () => {
@@ -591,50 +581,6 @@ export default function HHGoaCardGenerator() {
               style={{ backgroundColor: '#063520', color: '#FEE101' }}
             />
           </div>
-
-          {imageSrc ? (
-            <div className="rounded-xl p-3 border" style={{ borderColor: '#FEE101' }}>
-              <p className="text-sm font-semibold mb-2" style={{ color: '#FEE101' }}>
-                Photo Position & Resize
-              </p>
-              <label className="block text-xs mb-1" style={{ color: '#D1FAE5' }}>
-                Zoom: {photoZoom.toFixed(2)}x
-              </label>
-              <input
-                type="range"
-                min="1"
-                max="3"
-                step="0.01"
-                value={photoZoom}
-                onChange={(e) => setPhotoZoom(Number(e.target.value))}
-                className="w-full"
-              />
-              <label className="block text-xs mt-2 mb-1" style={{ color: '#D1FAE5' }}>
-                Move Left / Right: {photoOffsetX}px
-              </label>
-              <input
-                type="range"
-                min="-160"
-                max="160"
-                step="1"
-                value={photoOffsetX}
-                onChange={(e) => setPhotoOffsetX(Number(e.target.value))}
-                className="w-full"
-              />
-              <label className="block text-xs mt-2 mb-1" style={{ color: '#D1FAE5' }}>
-                Move Up / Down: {photoOffsetY}px
-              </label>
-              <input
-                type="range"
-                min="-160"
-                max="160"
-                step="1"
-                value={photoOffsetY}
-                onChange={(e) => setPhotoOffsetY(Number(e.target.value))}
-                className="w-full"
-              />
-            </div>
-          ) : null}
 
           {formError ? (
             <p className="text-sm font-semibold" style={{ color: '#FCA5A5' }}>
