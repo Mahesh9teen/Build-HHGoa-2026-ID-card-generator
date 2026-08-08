@@ -168,8 +168,6 @@ function renderWideCard(ctx, { headerImg, profileImg, qrImg, name, role, builder
   ctx.font = '13px monospace';
   ctx.textAlign = 'left';
   ctx.fillText('GOA, INDIA  •  28 - 31 OCT 2026', 44, 182);
-  ctx.textAlign = 'right';
-  ctx.fillText('2:47 PM STUDIO', 956, 182);
 
   if (profileImg) {
     drawCircularPhoto(ctx, profileImg, 220, 335, 260);
