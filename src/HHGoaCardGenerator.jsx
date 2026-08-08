@@ -271,6 +271,7 @@ export default function HHGoaCardGenerator() {
     img.src = assetPath('hacker-house.png');
   }, []);
 
+  const isContactValid = /^\d{10}$/.test(contact.trim());
   const isFormValid =
     name.trim() &&
     twitterUrl.trim() &&
@@ -281,7 +282,7 @@ export default function HHGoaCardGenerator() {
     linkedinUrl.trim() &&
     instagramUrl.trim() &&
     email.trim() &&
-    contact.trim() &&
+    isContactValid &&
     location.trim() &&
     skills.trim() &&
     imageSrc;
@@ -534,7 +535,11 @@ export default function HHGoaCardGenerator() {
   const handleGenerateResultPage = (e) => {
     e.preventDefault();
     if (!isFormValid) {
-      setFormError('Please fill all details and upload a photo.');
+      if (!isContactValid) {
+        setFormError('Contact number must be exactly 10 digits.');
+      } else {
+        setFormError('Please fill all details and upload a photo.');
+      }
       setShowResultPage(false);
       return;
     }
@@ -589,7 +594,7 @@ export default function HHGoaCardGenerator() {
             <h2 className="text-2xl font-bold mb-4" style={{ color: '#FEE101' }}>
               HHGoa 2026 Profile
             </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 items-start">
+            <div className="grid grid-cols-1 gap-6 items-start">
               <div className="flex justify-center">
                 <canvas
                   ref={scannedCanvasRef}
@@ -603,7 +608,7 @@ export default function HHGoaCardGenerator() {
                 <p><strong>Role:</strong> {scannedProfile.role}</p>
                 <p><strong>Builder Title:</strong> {scannedProfile.title}</p>
                 <p><strong>Builder ID:</strong> {scannedProfile.builderId}</p>
-                <p><strong>Twitter:</strong> {scannedProfile.twitter}</p>
+                <p><strong>Twitter URL:</strong> {scannedProfile.twitter}</p>
                 <p><strong>GitHub:</strong> {scannedProfile.github}</p>
                 <p><strong>LinkedIn:</strong> {scannedProfile.linkedin}</p>
                 <p><strong>Instagram:</strong> {scannedProfile.instagram}</p>
@@ -794,7 +799,11 @@ export default function HHGoaCardGenerator() {
             <input
               type="text"
               value={contact}
-              onChange={(e) => setContact(e.target.value)}
+              onChange={(e) => setContact(e.target.value.replace(/\D/g, '').slice(0, 10))}
+              inputMode="numeric"
+              maxLength={10}
+              pattern="[0-9]{10}"
+              title="Enter exactly 10 digits"
               className="w-full rounded-lg px-3 py-2 border"
               style={{ background: '#063520', borderColor: '#FEE101', color: '#FFFFFF' }}
             />
@@ -867,7 +876,7 @@ export default function HHGoaCardGenerator() {
             <h2 className="text-2xl font-bold mb-4" style={{ color: '#FEE101' }}>
               Your Generated ID Card
             </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 items-start">
+            <div className="grid grid-cols-1 gap-6 items-start">
               <div className="flex flex-col items-center">
                 <canvas
                   ref={canvasRef}
@@ -899,7 +908,7 @@ export default function HHGoaCardGenerator() {
                 <p><strong>Role:</strong> {role}</p>
                 <p><strong>Builder Title:</strong> {builderTitle}</p>
                 <p><strong>Builder ID:</strong> {builderId}</p>
-                <p><strong>Twitter:</strong> {twitterUrl}</p>
+                <p><strong>Twitter URL:</strong> {twitterUrl}</p>
                 <p><strong>GitHub:</strong> {githubUrl}</p>
                 <p><strong>LinkedIn:</strong> {linkedinUrl}</p>
                 <p><strong>Instagram:</strong> {instagramUrl}</p>
