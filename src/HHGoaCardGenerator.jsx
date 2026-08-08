@@ -32,6 +32,7 @@ function drawCircularPhoto(ctx, img, centerX, centerY, diameter) {
 }
 
 export default function HHGoaCardGenerator() {
+  const [hasStarted, setHasStarted] = useState(false);
   const [name, setName] = useState('');
   const [twitterUrl, setTwitterUrl] = useState('');
   const [role, setRole] = useState('');
@@ -389,18 +390,41 @@ export default function HHGoaCardGenerator() {
         </div>
       </header>
 
-      <div className="text-white p-6 pb-80 flex flex-col items-center justify-center gap-8">
-        <form
-          className="w-full max-w-md p-7 rounded-3xl shadow-2xl space-y-4 border"
-          style={{
-            background: 'linear-gradient(145deg, rgba(8,77,40,0.94), rgba(6,53,32,0.9))',
-            borderColor: '#FEE101',
-            backdropFilter: 'blur(8px)',
-          }}
-        >
-          <h2 className="text-2xl font-bold" style={{ color: '#FEE101' }}>
-            HHGoa ID Generator
-          </h2>
+      {!hasStarted ? (
+        <div className="px-6 pb-80 text-white flex justify-center">
+          <div
+            className="w-full max-w-xl rounded-3xl p-10 border text-center shadow-2xl"
+            style={{
+              background: 'linear-gradient(145deg, rgba(8,77,40,0.92), rgba(6,53,32,0.86))',
+              borderColor: '#FEE101',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            <p className="text-lg sm:text-2xl mb-6 font-semibold" style={{ color: '#FEE101' }}>
+              Generate your ID card
+            </p>
+            <button
+              onClick={() => setHasStarted(true)}
+              className="px-10 py-3 rounded-xl font-bold text-lg"
+              style={{ background: '#FEE101', color: '#0B6839' }}
+            >
+              Get Your ID Card
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="text-white p-6 pb-80 flex flex-col items-center justify-center gap-8">
+          <form
+            className="w-full max-w-md p-7 rounded-3xl shadow-2xl space-y-4 border"
+            style={{
+              background: 'linear-gradient(145deg, rgba(8,77,40,0.94), rgba(6,53,32,0.9))',
+              borderColor: '#FEE101',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            <h2 className="text-2xl font-bold" style={{ color: '#FEE101' }}>
+              HHGoa ID Generator
+            </h2>
 
           <div>
             <label className="block text-sm mb-1" style={{ color: '#FEE101' }}>
@@ -622,6 +646,7 @@ export default function HHGoaCardGenerator() {
           </button>
         </div>
       </div>
+      )}
     </div>
   );
 }
