@@ -84,33 +84,29 @@ export default function HHGoaCardGenerator() {
     }
 
     let cancelled = false;
-    const payload = JSON.stringify(
-      {
-        name: name.trim(),
-        twitterUrl: twitterUrl.trim(),
-        role: role.trim(),
-        builderTitle: builderTitle.trim(),
-        builderId: builderId.trim(),
-        githubUrl: githubUrl.trim(),
-        linkedinUrl: linkedinUrl.trim(),
-        instagramUrl: instagramUrl.trim(),
-        email: email.trim(),
-        contact: contact.trim(),
-        location: location.trim(),
-        skills: skills.trim(),
-      },
-      null,
-      0
-    );
+    const payload =
+      `HHGoa 2026 Profile\n` +
+      `Name: ${name.trim()}\n` +
+      `Role: ${role.trim()}\n` +
+      `Builder Title: ${builderTitle.trim()}\n` +
+      `Builder ID: ${builderId.trim()}\n` +
+      `Twitter: ${twitterUrl.trim()}\n` +
+      `GitHub: ${githubUrl.trim()}\n` +
+      `LinkedIn: ${linkedinUrl.trim()}\n` +
+      `Instagram: ${instagramUrl.trim()}\n` +
+      `Email: ${email.trim()}\n` +
+      `Contact: ${contact.trim()}\n` +
+      `Location: ${location.trim()}\n` +
+      `Skills: ${skills.trim()}`;
 
     async function buildQr() {
       try {
         const { default: QRCode } = await import('qrcode');
         const dataUrl = await QRCode.toDataURL(payload, {
-          width: 140,
-          margin: 1,
-          errorCorrectionLevel: 'M',
-          color: { dark: '#0A3A24', light: '#ffffff' },
+          width: 170,
+          margin: 2,
+          errorCorrectionLevel: 'L',
+          color: { dark: '#000000', light: '#ffffff' },
         });
         if (!cancelled) setQrCodeSrc(dataUrl);
       } catch {
@@ -275,13 +271,15 @@ export default function HHGoaCardGenerator() {
       ctx.fillText((location.trim() || 'GOA, INDIA').toUpperCase(), 300, 730);
 
       if (qrImg) {
+        ctx.imageSmoothingEnabled = false;
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(430, 760, 136, 136);
-        ctx.drawImage(qrImg, 438, 768, 120, 120);
+        ctx.fillRect(408, 734, 176, 176);
+        ctx.drawImage(qrImg, 411, 737, 170, 170);
+        ctx.imageSmoothingEnabled = true;
         ctx.fillStyle = '#FEE101';
         ctx.font = 'bold 11px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('SCAN FOR DETAILS', 498, 858);
+        ctx.fillText('SCAN FOR DETAILS', 496, 728);
       }
 
       setCardDataUrl(canvas.toDataURL('image/png'));
